@@ -61,15 +61,17 @@ contract PayoutManager is IPayoutManager {
     //  STATE CHANGE FUNCTIONS
     //------------------------
     function createPayout(string memory description, uint256 amount) external onlyOwner { 
+        require(amount > 0, "Payout Amount Zero");
+        _stablecoin().safeTransferFrom(msg.sender, address(this), amount);
+
         uint256 snapshotId = _asset().snapshot();
-        _stablecoin().transferFrom(msg.sender, address(this), amount);
-        uint256 payoutId = payouts.length;
         Payout storage payout = payouts.push();
         payout.snapshotId = snapshotId;
         payout.description = description;
         payout.amount = amount;
-        snapshotToPayout[snapshotId] = payouts.length - 1; 
-        emit CreatePayout(msg.sender, payoutId, amount, block.timestamp);
+        snapshotToPayout[snapshotId] = payouts.length - 1;
+        
+        emit CreatePayout(msg.sender, payouts.length, amount, block.timestamp);
     }
 
     //------------------------
@@ -84,13 +86,25 @@ contract PayoutManager is IPayoutManager {
         emit SetInfo(info, msg.sender, block.timestamp);
     }
 
+    /*
+        The actual release function allows a user to call it many times
+        and he will able to transfer all the payout amount to his account
+        Update:
+        Add a *** require(payout.released[account] == 0) *** this mean we
+        check if the current account has aleary claimed revenue
+        
+    */
     function release(address account, uint256 snapshotId) external override {
-        uint256 payoutId = snapshotToPayout[snapshotId];
-        Payout storage payout = payouts[payoutId];
+        // require(payout.released[account] == 0, "Account Already Claimed Revenue");
         uint256 sharesAtSnapshot = _shares(account, snapshotId);
         require(sharesAtSnapshot > 0, "Account has no shares.");
+        
+        uint256 payoutId = snapshotToPayout[snapshotId];
+        Payout storage payout = payouts[payoutId];
 
-        uint256 payment = payout.amount * sharesAtSnapshot / _asset().totalShares() - payout.released[account];
+        uint256 payment =
+            payout.amount * sharesAtSnapshot /
+            (_asset().totalShares() - payout.released[account]);
         require(payment != 0, "Account is not due payment.");
 
         payout.released[account] += payment;

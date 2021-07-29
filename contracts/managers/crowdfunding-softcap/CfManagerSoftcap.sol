@@ -113,11 +113,7 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
     function invest(uint256 amount) external active notFinalized isWhitelisted {
         require(amount > 0, "Investment amount has to be greater than 0.");
 
-        IERC20 assetToken = _assetERC20();
-        IERC20 stablecoin = _stablecoin();
-
-        uint256 totalTokenBalance = assetToken.balanceOf(address(this));
-        uint256 floatingTokens = totalTokenBalance - state.totalClaimableTokens;
+        uint256 floatingTokens = _assetERC20().balanceOf(address(this)) - state.totalClaimableTokens;
         require(floatingTokens > 0, "No more tokens available for sale.");
 
         uint256 tokenAmount = 
@@ -136,54 +132,72 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
         state.totalClaimableTokens += tokenAmount;
         state.totalFundsRaised += tokenValue;
         
-        stablecoin.safeTransferFrom(msg.sender, address(this), tokenValue);
+        _stablecoin().safeTransferFrom(msg.sender, address(this), tokenValue);
         emit Invest(msg.sender, tokenAmount, tokenValue, block.timestamp);
     }
 
     function cancelInvestment() external notFinalized {
-        IERC20 stablecoin = _stablecoin();
         uint256 tokenAmount = claims[msg.sender];
-        uint256 tokenValue = _token_value(tokenAmount);
         require(
             tokenAmount > 0,
             "No tokens owned."
         );
+
+        uint256 tokenValue = _token_value(tokenAmount);
         claims[msg.sender] = 0;
         state.totalClaimableTokens -= tokenAmount;
         state.totalInvestorsCount -= 1;
         state.totalFundsRaised -= tokenValue;
-        stablecoin.safeTransfer(msg.sender, tokenValue);
+        
+        _stablecoin().safeTransfer(msg.sender, tokenValue);
         emit CancelInvestment(msg.sender, tokenAmount, tokenValue, block.timestamp);
     }
 
-    function claim(address investor) external finalized {
-        uint256 claimableTokens = claims[investor];
-        uint256 claimableTokensValue = _token_value(claimableTokens);
+    function claim() external finalized {
+        uint256 claimableTokens = claims[msg.sender];
         require(
             claimableTokens > 0,
             "No tokens owned."
         );
         state.totalClaimsCount += 1;
-        claims[investor] = 0;
-        _assetERC20().safeTransfer(investor, claimableTokens);
-        emit Claim(investor, claimableTokens, claimableTokensValue, block.timestamp);
+        claims[msg.sender] = 0;
+        _assetERC20().safeTransfer(msg.sender, claimableTokens);
+        emit Claim(msg.sender, claimableTokens, _token_value(claimableTokens), block.timestamp);
     }
 
+    /*
+        The finalize function does not prevent a canceled campain to be finalized
+        by the owner
+        Update
+        --From:
+        function finalize() external onlyOwner(msg.sender) notFinalized {...
+        --To:
+        function finalize() external onlyOwner(msg.sender) notFinalized active {...
+    */
     function finalize() external onlyOwner(msg.sender) notFinalized {
         IERC20 stablecoin = _stablecoin(); 
-        IERC20 asset = _assetERC20();
         require(
             stablecoin.balanceOf(address(this)) >= state.softCap,
             "Can only finalize campaign if the minimum funding goal has been reached."
         );
         state.finalized = true;
         uint256 fundsRaised = stablecoin.balanceOf(address(this));
+        IERC20 asset = _assetERC20();
         uint256 tokenRefund = asset.balanceOf(address(this)) - state.totalClaimableTokens;
         stablecoin.safeTransfer(msg.sender, fundsRaised);
-        asset.safeTransfer(msg.sender, tokenRefund);
+        asset.safeTransfer(msg.sender, tokenRefund); 
         emit Finalize(msg.sender, fundsRaised, state.totalClaimableTokens, block.timestamp);
     }
 
+    /*
+        The function not prevent the user from cancelCampaign many times
+        no critical but should save gas transaction
+        Update
+        --From:
+        function cancelCampaign() external onlyOwner(msg.sender) notFinalized {...
+        --To:
+        function cancelCampaign() external onlyOwner(msg.sender) notFinalized active {...
+    */
     function cancelCampaign() external onlyOwner(msg.sender) notFinalized {
         state.cancelled = true;
         uint256 tokenBalance = _assetERC20().balanceOf(address(this));

@@ -173,6 +173,38 @@ contract Asset is IAsset, ERC20Snapshot {
     //------------------------
     //  ERC20Snapshot
     //------------------------
+
+    /*
+        // global variable that store the payout address or can be added to the asset structs
+        address payoutAddress;
+
+        function setPayoutAddress(address payoutAddress) external onlyOwner{
+            // check if the payoutAddress is not set then update rhis should be done 
+            // one time
+            require(payoutAddress == address(0));
+
+            // check if the current address is a contract
+            require(isContract(payoutAddress));
+
+            // get the payout state
+            Structs.PayoutManagerState payoutState; 
+            payoutState = IPayoutManager(payoutAddress).getState();
+
+            // validate if the current payout owner is the owner of the asset state 
+            // and if the current asset address is equal to state.asset of the payout contract
+            require(payoutState.owner == state.owner && address(this) == state.asset);
+
+            // set the address
+            payoutAddress = _payoutAddress;
+        }
+
+        function snapshot() external override returns (uint256) {
+            // check if the caller is the payout address
+            require(payoutAddress==msg.sender);
+            return _snapshot();
+        }
+    */
+
     function snapshot() external override returns (uint256) {
         return _snapshot();
     }

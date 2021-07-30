@@ -115,7 +115,25 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
 
         uint256 floatingTokens = _assetERC20().balanceOf(address(this)) - state.totalClaimableTokens;
         require(floatingTokens > 0, "No more tokens available for sale.");
+        /*  
+            comments:
+            - I deleted _asset_decimals_precision() and STABLECOIN_DECIMALS_PRECISION
+            because booth are equal to 10**18
+            - tokenValue insid transfertFrom function but amount should be used
 
+            uint256 tokenAmount = amount / _token_value();
+            require(tokenAmount >= floatingTokens, "Not enough tokens.");
+
+            if (claims[msg.sender] == 0) {
+                state.totalInvestorsCount += 1;
+            }
+            claims[msg.sender] += tokenAmount;
+            state.totalClaimableTokens += tokenAmount;
+            state.totalFundsRaised += amount;
+
+            _stablecoin().safeTransferFrom(msg.sender, address(this), amount);
+            emit Invest(msg.sender, tokenAmount, amount, block.timestamp);
+        */
         uint256 tokenAmount = 
             (amount / state.tokenPrice) 
                 * PRICE_DECIMALS_PRECISION 
@@ -143,6 +161,7 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
             "No tokens owned."
         );
 
+        // uint256 tokenValue = tokenAmount * _token_value();
         uint256 tokenValue = _token_value(tokenAmount);
         claims[msg.sender] = 0;
         state.totalClaimableTokens -= tokenAmount;
@@ -162,6 +181,7 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
         state.totalClaimsCount += 1;
         claims[msg.sender] = 0;
         _assetERC20().safeTransfer(msg.sender, claimableTokens);
+        // emit Claim(msg.sender, claimableTokens, claimableTokens * _token_value(), block.timestamp);
         emit Claim(msg.sender, claimableTokens, _token_value(claimableTokens), block.timestamp);
     }
 
@@ -176,12 +196,12 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
     */
     function finalize() external onlyOwner(msg.sender) notFinalized {
         IERC20 stablecoin = _stablecoin(); 
+        uint256 fundsRaised = stablecoin.balanceOf(address(this));
         require(
-            stablecoin.balanceOf(address(this)) >= state.softCap,
+            fundsRaised >= state.softCap,
             "Can only finalize campaign if the minimum funding goal has been reached."
         );
         state.finalized = true;
-        uint256 fundsRaised = stablecoin.balanceOf(address(this));
         IERC20 asset = _assetERC20();
         uint256 tokenRefund = asset.balanceOf(address(this)) - state.totalClaimableTokens;
         stablecoin.safeTransfer(msg.sender, fundsRaised);
@@ -249,6 +269,10 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
     function _asset_decimals_precision() private view returns (uint256) {
         return 10 ** IAsset(address(state.asset)).getDecimals();
     }
+
+    // function _token_value() private view returns (uint256) {
+    //     return state.tokenPrice / STABLECOIN_DECIMALS_PRECISION;
+    // }
 
     function _token_value(uint256 tokenAmount) private view returns (uint256) {
         return tokenAmount

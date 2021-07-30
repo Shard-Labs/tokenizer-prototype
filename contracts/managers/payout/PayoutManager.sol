@@ -96,11 +96,26 @@ contract PayoutManager is IPayoutManager {
     */
     function release(address account, uint256 snapshotId) external override {
         // require(payout.released[account] == 0, "Account Already Claimed Revenue");
+        // require(payout.totalReleased != payout.amount, "Revenue distributed");
         uint256 sharesAtSnapshot = _shares(account, snapshotId);
         require(sharesAtSnapshot > 0, "Account has no shares.");
         
         uint256 payoutId = snapshotToPayout[snapshotId];
         Payout storage payout = payouts[payoutId];
+
+        /*
+        There is two function that we can use
+
+        V1 => uint256 payment = payout.amount * sharesAtSnapshot / _asset().totalShares();
+        this one we can use it if we check first if the current account already claimed revenue
+
+        V2 =>   uint256 payment = (payout.amount * sharesAtSnapshot / _asset().totalShares()) -
+                                payout.released[account]
+                require(payment > 0, "Account is not due payment.");
+
+        This second one consume more gas than the V1
+
+        */
 
         uint256 payment =
             payout.amount * sharesAtSnapshot /

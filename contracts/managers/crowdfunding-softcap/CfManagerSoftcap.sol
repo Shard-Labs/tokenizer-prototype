@@ -15,6 +15,7 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
     //  CONSTANTS
     //------------------------
     uint256 constant PRICE_DECIMALS_PRECISION = 10 ** 4;
+    // You should use the default stablecoin decimal function
     uint256 constant STABLECOIN_DECIMALS_PRECISION = 10 ** 18;
 
     //------------------------

@@ -116,12 +116,10 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
         uint256 floatingTokens = _assetERC20().balanceOf(address(this)) - state.totalClaimableTokens;
         require(floatingTokens > 0, "No more tokens available for sale.");
         /*  
-            comments:
-            - I deleted _asset_decimals_precision() and STABLECOIN_DECIMALS_PRECISION
-            because booth are equal to 10**18
-            - tokenValue insid transfertFrom function but amount should be used
+            all works this suggested code is to make the function clearer
+            uint256 tokenAmount = amount / _token_value() * _token_precision();
+            uint256 tokenValue = tokenAmount * _token_value() / _token_precision();
 
-            uint256 tokenAmount = amount / _token_value();
             require(tokenAmount >= floatingTokens, "Not enough tokens.");
 
             if (claims[msg.sender] == 0) {
@@ -129,10 +127,10 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
             }
             claims[msg.sender] += tokenAmount;
             state.totalClaimableTokens += tokenAmount;
-            state.totalFundsRaised += amount;
+            state.totalFundsRaised += tokenValue;
 
-            _stablecoin().safeTransferFrom(msg.sender, address(this), amount);
-            emit Invest(msg.sender, tokenAmount, amount, block.timestamp);
+            _stablecoin().safeTransferFrom(msg.sender, address(this), tokenValue);
+            emit Invest(msg.sender, tokenAmount, tokenValue, block.timestamp);
         */
         uint256 tokenAmount = 
             (amount / state.tokenPrice) 
@@ -161,7 +159,7 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
             "No tokens owned."
         );
 
-        // uint256 tokenValue = tokenAmount * _token_value();
+        // uint256 tokenValue = tokenAmount * _token_value() / _token_precision();
         uint256 tokenValue = _token_value(tokenAmount);
         claims[msg.sender] = 0;
         state.totalClaimableTokens -= tokenAmount;
@@ -272,6 +270,10 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
 
     // function _token_value() private view returns (uint256) {
     //     return state.tokenPrice / STABLECOIN_DECIMALS_PRECISION;
+    // }
+
+    // function _token_precision() private view returns (uint256) {
+    //     return _asset_decimals_precision() / STABLECOIN_DECIMALS_PRECISION;
     // }
 
     function _token_value(uint256 tokenAmount) private view returns (uint256) {

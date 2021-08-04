@@ -4,12 +4,19 @@ pragma solidity ^0.8.0;
 import "./Issuer.sol";
 import "./IIssuerFactory.sol";
 
+/**
+    Make IssuerFactory upgradable
+ */
+
 contract IssuerFactory is IIssuerFactory {
 
     address[] public instances;
 
     event IssuerCreated(address indexed creator, address issuer, uint256 id, uint256 timestamp);
 
+    /**
+    Consider using proxy pattern for gas saving while creating new Issuers.
+     */
     function create(
         address owner,
         address stablecoin,

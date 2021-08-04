@@ -90,6 +90,12 @@ contract Issuer is IIssuer {
     //------------------------
     //  IIssuer IMPL
     //------------------------
+
+    /**
+    If time has to be precise you should consider calling this function from frontend and 
+    passing current time in seconds value instead of using block.time, as the block time for Ethereum is 10-20 sec.
+    For Polygon it shouldn't matter that much because block.time is 2 secs. Again, all depends on your delay tolerance.
+     */
     function setInfo(string memory info) external override onlyOwner {
         infoHistory.push(Structs.InfoEntry(
             info,
@@ -101,15 +107,20 @@ contract Issuer is IIssuer {
 
     function getState() external override view returns (Structs.IssuerState memory) { return state; }
     
+    /**
+    Why is this function able to return existance of wallet or campaign although it is called isWalletApproved?
+
+     */
     function isWalletApproved(address wallet) external view override returns (bool) {
-        bool walletExists = _addressExists(wallet, approvedWalletsMap, approvedWallets);
+        bool walletExists =  _addressExists(wallet, approvedWalletsMap, approvedWallets);
         bool campaignExists = _addressExists(wallet, approvedCampaignsMap, approvedCampaigns);
-        if (!walletExists && !campaignExists) { return false; }
+        // Unnecessary check; Gas saving
+        //if (!walletExists && !campaignExists) { return false; }
         if (walletExists) { return approvedWallets[approvedWalletsMap[wallet]].whitelisted; }
         if (campaignExists) { return approvedCampaigns[approvedCampaignsMap[wallet]].whitelisted; }
         return false;
     }
-
+    
     function getInfoHistory() external view override returns (Structs.InfoEntry[] memory) {
         return infoHistory;
     }
@@ -154,7 +165,8 @@ contract Issuer is IIssuer {
         Structs.WalletRecord[] storage array
     ) private view returns (bool) {
         uint256 index = map[wallet];
-        if (array.length == 0) { return false; }
+        // Unnecessary check; Gas saving
+        // if (array.length == 0) { return false; }
         if (index >= array.length) { return false; }
         if (array[index].wallet != wallet) { return false; }
         return true;

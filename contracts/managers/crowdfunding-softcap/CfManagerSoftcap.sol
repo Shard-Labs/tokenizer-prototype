@@ -111,9 +111,10 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
     //------------------------
     // STATE CHANGE FUNCTIONS
     //------------------------
+
+
     function invest(uint256 amount) external active notFinalized isWhitelisted {
         require(amount > 0, "Investment amount has to be greater than 0.");
-
         uint256 floatingTokens = _assetERC20().balanceOf(address(this)) - state.totalClaimableTokens;
         require(floatingTokens > 0, "No more tokens available for sale.");
         /*  
@@ -133,6 +134,7 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
             _stablecoin().safeTransferFrom(msg.sender, address(this), tokenValue);
             emit Invest(msg.sender, tokenAmount, tokenValue, block.timestamp);
         */
+        // ??
         uint256 tokenAmount = 
             (amount / state.tokenPrice) 
                 * PRICE_DECIMALS_PRECISION 
@@ -149,10 +151,16 @@ contract CfManagerSoftcap is ICfManagerSoftcap {
         state.totalClaimableTokens += tokenAmount;
         state.totalFundsRaised += tokenValue;
         
+        /* Put this line right after you calculate tokenAmount (gas saving)
+        */
         _stablecoin().safeTransferFrom(msg.sender, address(this), tokenValue);
         emit Invest(msg.sender, tokenAmount, tokenValue, block.timestamp);
     }
-
+    /*
+    User can't cancel his investment after he claimed his tokens.
+    You should probably add a function where the user returns his claimed tokens to get that claims counter back up 
+    so he could cancel his investment.
+    */
     function cancelInvestment() external notFinalized {
         uint256 tokenAmount = claims[msg.sender];
         require(
